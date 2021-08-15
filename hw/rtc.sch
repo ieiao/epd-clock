@@ -152,7 +152,34 @@ Text HLabel 6100 3700 2    50   Input ~ 0
 SCL
 Text HLabel 6100 3800 2    50   BiDi ~ 0
 SDA
-Text HLabel 6100 4100 2    50   Output ~ 0
+Text HLabel 6550 4100 2    50   Output ~ 0
 INT
 NoConn ~ 6100 4000
+$Comp
+L Device:R R13
+U 1 1 6118B5C6
+P 6300 4250
+F 0 "R13" H 6230 4204 50  0000 R CNN
+F 1 "10K" H 6230 4295 50  0000 R CNN
+F 2 "Resistor_SMD:R_0603_1608Metric" V 6230 4250 50  0001 C CNN
+F 3 "~" H 6300 4250 50  0001 C CNN
+	1    6300 4250
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	6100 4100 6300 4100
+Connection ~ 6300 4100
+Wire Wire Line
+	6300 4100 6550 4100
+$Comp
+L power:+3V3 #PWR056
+U 1 1 6118BF3A
+P 6300 4400
+F 0 "#PWR056" H 6300 4250 50  0001 C CNN
+F 1 "+3V3" H 6315 4573 50  0000 C CNN
+F 2 "" H 6300 4400 50  0001 C CNN
+F 3 "" H 6300 4400 50  0001 C CNN
+	1    6300 4400
+	-1   0    0    1   
+$EndComp
 $EndSCHEMATC
