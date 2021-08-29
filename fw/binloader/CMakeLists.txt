@@ -19,13 +19,13 @@ set(EXECUTABLE ${PROJECT_NAME}.elf)
 
 add_executable(${EXECUTABLE} 
     binloader.c
-    hal/gpio.c
-    hal/uart.c
-    hal/spi.c
+    drivers/gpio.c
+    drivers/uart.c
+    drivers/spi.c
     )
 
 target_include_directories(${EXECUTABLE} PRIVATE
-    hal
+    drivers
     )
 
 add_custom_target(flash

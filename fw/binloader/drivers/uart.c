@@ -6,9 +6,9 @@ void uart_init(void)
     UCA0CTL1 |= UCSSEL_2;
 
     /* baud rate = 9600 */
-    UCA0BR0 = 1666%256;
-    UCA0BR1 = 1666/256;
-    UCA0MCTL = UCBRS_6;
+    UCA0BR0 = 138%256;
+    UCA0BR1 = 138/256;
+    UCA0MCTL = UCBRS_7;
     UCA0CTL1 &= ~UCSWRST;
 }
 

@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "serprog.h"
-#include "hal/uart.h"
-#include "hal/gpio.h"
-#include "hal/spi.h"
+#include "drivers/uart.h"
+#include "drivers/gpio.h"
+#include "drivers/spi.h"
 
 #define PGMNAME "msp-serprog"
 #define CMD_MAP (\
