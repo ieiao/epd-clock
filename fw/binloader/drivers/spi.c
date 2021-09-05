@@ -10,9 +10,9 @@ char __spi_rw_byte(char c)
     for (i = 0; i < 8; i++) {
         /* prepare data */
         if (c & 0x80)
-            P3OUT |= BIT1;
+            P3OUT |= BIT4;
         else
-            P3OUT &= ~BIT1;
+            P3OUT &= ~BIT4;
         /* rising edge, sampling data */
         P3OUT |= BIT2;
         r_temp = r_temp << 1;

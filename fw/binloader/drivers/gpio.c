@@ -19,15 +19,15 @@ void gpio_init(void)
 
     /*
      * P3.0 = MISO              I
-     * P3.1 = MOSI              O
+     * P3.1 = EPD_BUSY          I
      * P3.2 = CLK               O
      * P3.3 = EPD_PWR_EN#       O
-     * P3.4 = EPD_BUSY          I
+     * P3.4 = MOSI              O
      * P3.5 = EPD_RST#          O
      * P3.6 = EPD_DC#           O
      * P3.7 = EPC_CS#           O
      */
-    P3DIR = BIT1 + BIT2 + BIT3 + BIT5 + BIT6 + BIT7;
+    P3DIR = BIT2 + BIT3 + BIT4 + BIT5 + BIT6 + BIT7;
 
     /* 设置EPD CS和PWR MOSFET状态, 同时让CLK处于 SPI mode 0 idle状态 */
     P3OUT = BIT3 + BIT7;
