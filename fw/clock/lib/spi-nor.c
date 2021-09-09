@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include "spi-nor.h"
-#include "../drivers/spi.h"
+#include "spi.h"
 
-uint16_t spi_nor_read(uint32_t offset, uint16_t length, uint8_t *buffer)
+uint32_t spi_nor_read(uint32_t offset, uint32_t length, char *buffer)
 {
     char w_buf[4];
 
@@ -19,12 +19,12 @@ uint16_t spi_nor_read(uint32_t offset, uint16_t length, uint8_t *buffer)
 
 void spi_nor_power_down(void)
 {
-    char w_buf = 0xb9;
-    spi_transfer(&w_buf, NULL, CS_SPI_NOR, 1, true);
+    const char w_buf = 0xb9;
+    spi_transfer((char *)&w_buf, NULL, CS_SPI_NOR, 1, true);
 }
 
 void spi_nor_release_power_down(void)
 {
-    char w_buf = 0xab;
-    spi_transfer(&w_buf, NULL, CS_SPI_NOR, 1, true);
+    const char w_buf = 0xab;
+    spi_transfer((char *)&w_buf, NULL, CS_SPI_NOR, 1, true);
 }

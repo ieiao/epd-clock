@@ -1,9 +1,9 @@
 #include "search.h"
 
-uint16_t uint16_binary_search(uint16_t *nums, uint16_t length, uint16_t target)
+int32_t int32_binary_search(int32_t *nums, int32_t length, int32_t target)
 {
-    uint16_t left = 0;
-    uint16_t right = length - 1;
+    int32_t left = 0;
+    int32_t right = length - 1;
 
     while(left <= right) {
         int mid = left + (right - left) / 2;

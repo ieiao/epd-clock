@@ -1,6 +1,9 @@
 #ifndef _PCF8563_H_
 #define _PCF8563_H_
 
+#include <stdint.h>
+#include "time.h"
+
 #define PCF8563_ADDR 0x51
 
 void pcf8563_set_time(struct time *time);

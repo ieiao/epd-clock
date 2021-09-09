@@ -1,7 +1,6 @@
-#include "../drivers/i2c.h"
-#include "time.h"
-#include <string.h>
 #include "pcf8563.h"
+#include "i2c.h"
+#include <string.h>
 #include <stdint.h>
 
 void pcf8563_set_time(struct time *time)

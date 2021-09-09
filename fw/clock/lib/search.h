@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-uint16_t uint16_binary_search(uint16_t *nums, uint16_t length, uint16_t target);
+int32_t int32_binary_search(int32_t *nums, int32_t length, int32_t target);
 
 #endif
