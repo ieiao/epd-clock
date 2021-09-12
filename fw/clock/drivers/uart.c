@@ -35,4 +35,5 @@ void uart_write(char *p)
         } else
             UCA0TXBUF = *p++;
     }
+    while (!(IFG2&UCA0TXIFG));
 }

@@ -20,12 +20,8 @@ int main()
     platform_init();
     gpio_init();
     i2c_init();
-    uart_init();
-    timer_init();
     int_enable();
-
-    epd_init(EPD_MODE_FULL_REFRESH);
-    epd_clear();
+    timer_init();
     
     main_loop();
 

@@ -4,14 +4,12 @@ void gpio_init(void)
 {
     /* 
      * P1.0 ADC 复用配置不关心
-     * P1.1 = RXD
-     * P1.2 = TXD
      * P1.6 = SCL
      * P1.7 = SDA
      * 其余IO无复用
      */
-    P1SEL = BIT1 + BIT2 + BIT6 + BIT7;
-    P1SEL2 = BIT1 + BIT2 + BIT6 + BIT7;
+    P1SEL = BIT6 + BIT7;
+    P1SEL2 = BIT6 + BIT7;
 
     /* 
      * P1.3 = FLASHCS           O
@@ -23,9 +21,9 @@ void gpio_init(void)
     P1OUT = BIT3 + BIT4;
 
     /* 使能RTC唤醒引脚中断，清除中断状态 */
-    P1IE |= BIT5;
     P1IES |= BIT5;
     P1IFG &= ~BIT5;
+    P1IE |= BIT5;
 
     /*
      * P3.0 = MISO              I
@@ -86,7 +84,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #endif
 {
     P1IFG &= ~BIT5;
-    __bic_SR_register_on_exit(LPM3_bits);
+    __bic_SR_register_on_exit(LPM4_bits);
 }
 
 // Port 2 interrupt service routine

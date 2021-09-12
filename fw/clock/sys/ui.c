@@ -10,9 +10,9 @@
 #include <stdio.h>
 
 void main_page_draw(void *data);
-void main_page_ctl(void *data);
+int main_page_ctl(void *data);
 void setting_page_draw(void *data);
-void setting_page_ctl(void *data);
+int setting_page_ctl(void *data);
 
 const struct user_page top_pages[] = {
     {
@@ -90,29 +90,27 @@ void assemble_data_string(char *buffer, struct time *time)
     strcpy(buffer, year_string);
     buffer[2] = time->years/10 + 0x30;
     buffer[3] = time->years%10 + 0x30;
-    buffer += strlen(year_string);
+    buffer += sizeof(year_string) - 1;
 
     strcpy(buffer, month_string);
     buffer[0] = time->months/10 + 0x30;
     buffer[1] = time->months%10 + 0x30;
-    buffer += strlen(month_string);
+    buffer += sizeof(month_string) - 1;
 
     strcpy(buffer, day_string);
     buffer[0] = time->days/10 + 0x30;
     buffer[1] = time->days%10 + 0x30;
-}
+    buffer += sizeof(day_string) - 1;
 
-void assemble_weekday_string(char *buffer, struct time *time)
-{
     strcpy(buffer, weekday_string);
-    buffer += strlen(weekday_string);
+    buffer += sizeof(weekday_string) - 1;
     strcpy(buffer, weekday_strings[time->weekdays]);
 }
 
 void draw_time(struct time *time)
 {
     uint32_t offset, index;
-    char buffer[32];
+    char buffer[64];
 
     epd_set_window(24, 0, 119, 295);
 
@@ -136,12 +134,8 @@ void draw_time(struct time *time)
     offset = MAIN_CLOCK_FONT_OFFSET + 768*index;
     __dot_matrix_copy(offset, 768);
 
-    epd_set_window(8, 0, 23, 111);
+    epd_set_window(8, 68, 23, 227);
     assemble_data_string(buffer, time);
-    draw_utf8_string(buffer);
-
-    epd_set_window(8, 247, 23, 295);
-    assemble_weekday_string(buffer, time);
     draw_utf8_string(buffer);
 
     epd_turnon();
@@ -152,9 +146,9 @@ void main_page_draw(void *data)
     draw_time((struct time *)data);
 }
 
-void main_page_ctl(void *data)
+int main_page_ctl(void *data)
 {
-
+    return PAGE_BREAK;
 }
 
 void setting_page_draw(void *data)
@@ -162,12 +156,18 @@ void setting_page_draw(void *data)
 
 }
 
-void setting_page_ctl(void *data)
+int setting_page_ctl(void *data)
 {
-
+    return PAGE_KEEP;
 }
 
 void ui_main_loop(void *data)
 {
-    main_page_draw(data);
+    struct user_page *page = (struct user_page *)&top_pages[0];
+    while(1) {
+        if (page->init)
+            page->init(data);
+        page->draw(data);
+        break;
+    }
 }

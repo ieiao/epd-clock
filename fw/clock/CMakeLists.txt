@@ -27,6 +27,7 @@ add_executable(${EXECUTABLE}
     lib/time.c
     lib/search.c
     lib/utf8-cov.c
+    lib/button.c
 )
 
 target_include_directories(${EXECUTABLE} PRIVATE
