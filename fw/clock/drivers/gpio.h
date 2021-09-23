@@ -52,8 +52,9 @@
 #define BT2_STATE          (BT2_PORT & BT2_PIN)
 #define BT2_PUSHED         (BT2_STATE == 0)
 
+#define ENABLE_BUTTON_WAKEUP    (P2IE |= (BIT0 + BIT1 + BIT2))
+
 void gpio_init(void);
-void gpio_suspend(void);
 void gpio_resume(void);
 
 #endif

@@ -3,7 +3,7 @@
 
 enum {
     PAGE_KEEP = 0,
-    PAGE_NEXT ,
+    PAGE_NEXT,
     PAGE_PREV,
     PAGE_BREAK
 };

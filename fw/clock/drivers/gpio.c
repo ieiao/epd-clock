@@ -1,4 +1,7 @@
+#include <msp430g2553.h>
 #include "gpio.h"
+#include "pm.h"
+#include "core.h"
 
 void gpio_init(void)
 {
@@ -8,8 +11,8 @@ void gpio_init(void)
      * P1.7 = SDA
      * 其余IO无复用
      */
-    P1SEL = BIT6 + BIT7;
-    P1SEL2 = BIT6 + BIT7;
+    P1SEL = BIT1 + BIT2 + BIT6 + BIT7;
+    P1SEL2 = BIT1 + BIT2 + BIT6 + BIT7;
 
     /* 
      * P1.3 = FLASHCS           O
@@ -47,25 +50,8 @@ void gpio_init(void)
     /* 
      * P2 ALL input
      */
-    /* P2DIR = 0x00;
-    P2IE = 0x00; */
-}
-
-void gpio_suspend(void)
-{
-    P1SEL = 0x00;
-    P1SEL2 = 0x00;
-    P1DIR = 0xff;
-    P1OUT = 0xff;
-
-    P2DIR = ~(BIT0 + BIT1 + BIT2);
-    P2OUT = 0xff;
-    P2IFG &= BIT0 + BIT1 + BIT2;
     P2IES |= BIT0 + BIT1 + BIT2;
-    P2IE |= BIT0 + BIT1 + BIT2;
-
-    P3DIR = 0xff;
-    P3OUT = 0xff;
+    P2IFG &= ~(BIT0 + BIT1 + BIT2);
 }
 
 void gpio_resume(void)
@@ -84,7 +70,8 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #endif
 {
     P1IFG &= ~BIT5;
-    __bic_SR_register_on_exit(LPM4_bits);
+    set_wakeup_type(WAKEUP_BY_RTC);
+    SYS_EXIT_SLEEP;
 }
 
 // Port 2 interrupt service routine
@@ -97,5 +84,8 @@ void __attribute__ ((interrupt(PORT2_VECTOR))) Port_2 (void)
 #error Compiler not supported!
 #endif
 {
-
+    P2IFG &= ~(BIT0 + BIT1 + BIT2);
+    P2IE &= ~(BIT0 + BIT1 + BIT2);
+    set_wakeup_type(WAKEUP_BY_BUTTON);
+    SYS_EXIT_SLEEP;
 }
