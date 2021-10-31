@@ -5,13 +5,17 @@
 #include "pcf8563.h"
 #include "spi-nor.h"
 #include "time.h"
+#include "timer.h"
 #include "utf8-cov.h"
 #include "uart.h"
 #include "core.h"
+#include <msp430g2553.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include "gpio.h"
 
 void main_page_draw(void *data);
 int main_page_ctl(void *data);
@@ -104,6 +108,7 @@ const char *weekday_strings[] = {
 };
 const char hour_string[] = "01时";
 const char minute_string[] = "01分";
+const char night_string[] = "夜晚模式 ";
 
 char *__assemble_string_date(char *buffer, struct time *time)
 {
@@ -154,17 +159,13 @@ void __assemble_date_string(char *buffer, struct time *time)
     __assemble_string_weekday(buffer, time);
 }
 
-void main_page_draw(void *data)
+void __main_page_draw_time(struct sys_info *sys_info)
 {
-    struct sys_info *sys_info = (struct sys_info *)data;
     struct time *time = &sys_info->time;
     uint32_t offset, index;
     char buffer[64];
 
-    epd_init(EPD_MODE_FULL_REFRESH);
-    epd_clear();
     epd_set_window(24, 0, 119, 295);
-
     index = time->hours/10;
     offset = MAIN_CLOCK_FONT_OFFSET + 768*index;
     __dot_matrix_copy(offset, 768, false);
@@ -185,24 +186,61 @@ void main_page_draw(void *data)
     offset = MAIN_CLOCK_FONT_OFFSET + 768*index;
     __dot_matrix_copy(offset, 768, false);
 
-    epd_set_window(8, 68, 23, 227);
+    epd_set_window(8, 48, 23, 247);
     __assemble_date_string(buffer, time);
     draw_utf8_string(buffer, false);
 
-    epd_turnon();
+    buffer[0] = ' ';
+    buffer[1] = sys_info->bat_val/100 + 0x30;
+    buffer[2] = '.';
+    buffer[3] = sys_info->bat_val%100/10 + 0x30;
+    buffer[4] = sys_info->bat_val%10 + 0x30;
+    buffer[5] = '\0';
+    draw_utf8_string(buffer, false);
+}
 
+void __main_page_draw_night_tip(void)
+{
+    epd_set_window(0, 0, 127, 295);
+    __dot_matrix_copy((uint32_t)NIGHT_FREEZE_TIP_OFFSET, 296*(128/8), false);
+}
+
+void main_page_draw(void *data)
+{
+    struct sys_info *sys_info = (struct sys_info *)data;
+
+    epd_init(EPD_MODE_FULL_REFRESH);
+    epd_clear();
+
+    if (in_night_freeze()) {
+        if (sys_info->wakeup_type == WAKEUP_BY_BUTTON) {
+            __main_page_draw_time(sys_info);
+        } else {
+            __main_page_draw_night_tip();
+        }
+    } else {
+        __main_page_draw_time(sys_info);
+    }
+
+    epd_turnon();
 }
 
 int main_page_ctl(void *data)
 {
-    if (get_button_event(BUTTON0) != BT_EVENT_NONE ||
-        get_button_event(BUTTON1) != BT_EVENT_NONE ||
-        get_button_event(BUTTON2) != BT_EVENT_NONE)
-        return PAGE_NEXT;
+    if (in_night_freeze()) {
+        if (get_button_event(BUTTON2) == BT_EVENT_LONG)
+            return PAGE_NEXT;
+    } else {
+        if (get_button_event(BUTTON0) != BT_EVENT_NONE ||
+            get_button_event(BUTTON1) != BT_EVENT_NONE ||
+            get_button_event(BUTTON2) != BT_EVENT_NONE)
+            return PAGE_NEXT;
+    }
+    clear_all_button_event();
     return PAGE_BREAK;
 }
 
-static uint8_t setting_page_indicator;
+static int8_t setting_page_indicator;
 enum {
     INDICATOR_YEAR_HI = 0,
     INDICATOR_YEAR_LO,
@@ -214,13 +252,18 @@ enum {
     INDICATOR_HOUR_LO,
     INDICATOR_MINUTE_HI,
     INDICATOR_MINUTE_LO,
+    INDICATOR_NIGHT_BEGIN_HI,
+    INDICATOR_NIGHT_BEGIN_LO,
+    INDICATOR_NIGHT_END_HI,
+    INDICATOR_NIGHT_END_LO,
 };
 
 const unsigned char indicator_offset[] = {
-    2, 3, 6, 7, 10, 11, 14, 15, 18, 19
+    2, 3, 6, 7, 10, 11, 14, 15, 18, 19,
+    9, 10, 14, 15,
 };
 
-void __setting_page_assemble_indicator(char *buffer, uint8_t indicator)
+void __setting_page_assemble_indicator(char *buffer, int8_t indicator)
 {
     memset(buffer, ' ', indicator_offset[indicator]);
     buffer += indicator_offset[indicator];
@@ -228,20 +271,56 @@ void __setting_page_assemble_indicator(char *buffer, uint8_t indicator)
     *buffer = '\0';
 }
 
-void __setting_page_draw(char *buffer, struct time *time)
+void __assemble_string_night(char *buffer, struct sys_info *sys_info)
+{
+    strcpy(buffer, hour_string);
+    buffer[0] = sys_info->night_begin/10 + 0x30;
+    buffer[1] = sys_info->night_begin%10 + 0x30;
+    buffer += sizeof(hour_string) - 1;
+
+    *buffer++ = '~';
+
+    strcpy(buffer, hour_string);
+    buffer[0] = sys_info->night_end/10 + 0x30;
+    buffer[1] = sys_info->night_end%10 + 0x30;
+    buffer += sizeof(hour_string) - 1;
+}
+
+void __setting_page_draw(char *buffer, struct sys_info *sys_info)
 {
     epd_clear();
     epd_set_window(104, 132, 119, 163);
     draw_utf8_string("设置", false);
 
+    /* 时间字符串 */
     epd_set_window(80, 60, 95, 235);
-    __assemble_string_date(buffer, time);
+    __assemble_string_date(buffer, &sys_info->time);
     draw_utf8_string(buffer, false);
-    __assemble_string_time(buffer, time);
+    __assemble_string_time(buffer, &sys_info->time);
+    draw_utf8_string(buffer, false);
+
+    /* 夜间模式字符串 */
+    epd_set_window(48, 60, 63, 235);
+    draw_utf8_string(night_string, false);
+    __assemble_string_night(buffer, sys_info);
     draw_utf8_string(buffer, false);
 
     if (setting_page_indicator <= INDICATOR_MINUTE_LO) {
         epd_set_window(64, 60, 79, 235);
+        __setting_page_assemble_indicator(buffer, setting_page_indicator);
+        draw_utf8_string(buffer, false);
+        /* 清除掉第二行指示器 */
+        epd_set_window(32, 60, 47, 235);
+        memset(buffer, ' ', indicator_offset[INDICATOR_NIGHT_END_LO]);
+        *(buffer + indicator_offset[INDICATOR_NIGHT_END_LO]) = '\0';
+        draw_utf8_string(buffer, false);
+    } else {
+        /* 清除掉第一行指示器 */
+        epd_set_window(64, 60, 79, 235);
+        memset(buffer, ' ', indicator_offset[INDICATOR_MINUTE_LO]);
+        *(buffer + indicator_offset[INDICATOR_MINUTE_LO]) = '\0';
+        draw_utf8_string(buffer, false);
+        epd_set_window(32, 60, 47, 235);
         __setting_page_assemble_indicator(buffer, setting_page_indicator);
         draw_utf8_string(buffer, false);
     }
@@ -257,87 +336,183 @@ void __setting_page_adjust_days(struct time *time)
     case 8:
     case 10:
     case 12:
-        if (time->days > 31) {
-            if (setting_page_indicator == INDICATOR_DAY_HI)
-                time->days -= 40;
-            else if(setting_page_indicator == INDICATOR_DAY_LO)
-                time->days = 1;
-        }
+        if (time->days > 31)
+            time->days = 1;
+        else if (time->days < 0)
+            time->days = 31;
         break;
     case 2:
         if (is_leap_year((uint16_t)time->years + 2000)) {
-            if (time->days > 29) {
-                if (setting_page_indicator == INDICATOR_DAY_HI)
-                    time->days -= 30;
-                else if(setting_page_indicator == INDICATOR_DAY_LO)
-                    time->days = 1;
-            }
+            if (time->days > 29)
+                time->days = 1;
+            else if (time->days < 0)
+                time->days = 29;
         } else {
-            if (time->days > 28) {
-                if (setting_page_indicator == INDICATOR_DAY_HI)
-                    time->days -= 30;
-                else if(setting_page_indicator == INDICATOR_DAY_LO)
-                    time->days = 1;
-            }
+            if (time->days > 28)
+                time->days = 1;
+            else if (time->days < 0)
+                time->days = 28;
         }
         break;
     default:
         if (time->days > 30)
-                time->days = 1;
+            time->days = 1;
+        else if (time->days < 0)
+            time->days = 30;
         break;
     }
 }
 
-void __setting_page_adjust(struct time *time)
+void __year_adjust(struct time *time)
 {
+    if (time->years > 99)
+        time->years = 0;
+    else if (time->years < 0)
+        time->years = 99;
+}
+
+void __month_adjust(struct time *time)
+{
+    if (time->months > 12)
+        time->months = 1;
+    else if (time->months < 1)
+        time->months = 12;
+}
+
+void __hour_adjust(struct time *time)
+{
+    if (time->hours > 23)
+        time->hours = 0;
+    else if (time->hours < 0)
+        time->hours = 23;
+}
+
+void __minute_adjust(struct time *time)
+{
+    if (time->minutes > 59)
+        time->minutes = 0;
+    else if (time->minutes < 0)
+        time->minutes = 59;
+}
+
+void __night_begin_adjust(struct sys_info *sys_info)
+{
+    if (sys_info->night_begin > 23)
+        sys_info->night_begin = 0;
+    else if (sys_info->night_begin < 0)
+        sys_info->night_begin = 23;
+}
+
+void __night_end_adjust(struct sys_info *sys_info)
+{
+    if (sys_info->night_end > 23)
+        sys_info->night_end = 0;
+    else if (sys_info->night_end < 0)
+        sys_info->night_end = 23;
+}
+
+void __setting_page_adjust(struct sys_info *sys_info, unsigned int bt_event)
+{
+    struct time *time = &sys_info->time;
+
     switch (setting_page_indicator) {
     case INDICATOR_YEAR_HI:
-        time->years += 10;
-        if (time->years > 99)
-            time->years -= 100;
+        if (bt_event == BT_EVENT_SHORT)
+            time->years += 10;
+        else
+            time->years -= 10;
+        __year_adjust(time);
         break;
     case INDICATOR_YEAR_LO:
-        time->years += 1;
-        if (time->years > 99)
-            time->years -= 100;
+        if (bt_event == BT_EVENT_SHORT)
+            time->years += 1;
+        else
+            time->years -= 1;
+        __year_adjust(time);
         break;
     case INDICATOR_MONTH_HI:
-        time->months += 10;
-        if (time->months > 12)
-            time->months -= 20;
+        if (bt_event == BT_EVENT_SHORT)
+            time->months += 10;
+        else
+            time->months -= 10;
+        __month_adjust(time);
         break;
     case INDICATOR_MONTH_LO:
-        time->months += 1;
-        if (time->months > 12)
-            time->months = 1;
+        if (bt_event == BT_EVENT_SHORT)
+            time->months += 1;
+        else
+            time->months -= 1;
+        __month_adjust(time);
         break;
     case INDICATOR_DAY_HI:
-        time->days += 10;
+        if (bt_event == BT_EVENT_SHORT)
+            time->days += 10;
+        else
+            time->days -= 10;
         __setting_page_adjust_days(time);
         break;
     case INDICATOR_DAY_LO:
-        time->days += 1;
+        if (bt_event == BT_EVENT_SHORT)
+            time->days += 1;
+        else
+            time->days -= 1;
         __setting_page_adjust_days(time);
         break;
     case INDICATOR_HOUR_HI:
-        time->hours += 10;
-        if (time->hours > 23)
-            time->hours -= 30;
+        if (bt_event == BT_EVENT_SHORT)
+            time->hours += 10;
+        else
+            time->hours -= 10;
+        __hour_adjust(time);
         break;
     case INDICATOR_HOUR_LO:
-        time->hours += 1;
-        if (time->hours > 23)
-            time->hours = 0;
+        if (bt_event == BT_EVENT_SHORT)
+            time->hours += 1;
+        else
+            time->hours -= 1;
+        __hour_adjust(time);
         break;
     case INDICATOR_MINUTE_HI:
-        time->minutes += 10;
-        if (time->minutes >= 60)
-            time->minutes = 0;
+        if (bt_event == BT_EVENT_SHORT)
+            time->minutes += 10;
+        else
+            time->minutes -= 10;
+        __minute_adjust(time);
         break;
     case INDICATOR_MINUTE_LO:
-        time->minutes += 1;
-        if (time->minutes >= 60)
-            time->minutes = 0;
+        if (bt_event == BT_EVENT_SHORT)
+            time->minutes += 1;
+        else
+            time->minutes -= 1;
+        __minute_adjust(time);
+        break;
+    case INDICATOR_NIGHT_BEGIN_HI:
+        if (bt_event == BT_EVENT_SHORT)
+            sys_info->night_begin += 10;
+        else
+            sys_info->night_begin -= 10;
+        __night_begin_adjust(sys_info);
+        break;
+    case INDICATOR_NIGHT_BEGIN_LO:
+        if (bt_event == BT_EVENT_SHORT)
+            sys_info->night_begin += 1;
+        else
+            sys_info->night_begin -= 1;
+        __night_begin_adjust(sys_info);
+        break;
+    case INDICATOR_NIGHT_END_HI:
+        if (bt_event == BT_EVENT_SHORT)
+            sys_info->night_end += 10;
+        else
+            sys_info->night_end -= 10;
+        __night_end_adjust(sys_info);
+        break;
+    case INDICATOR_NIGHT_END_LO:
+        if (bt_event == BT_EVENT_SHORT)
+            sys_info->night_end += 1;
+        else
+            sys_info->night_end -= 1;
+        __night_end_adjust(sys_info);
         break;
     default:
         break;
@@ -347,12 +522,11 @@ void __setting_page_adjust(struct time *time)
 void setting_page_init(void *data)
 {
     struct sys_info *sys_info = (struct sys_info *)data;
-    struct time *time = &sys_info->time;
     char buffer[32];
 
     setting_page_indicator = 0;
     epd_init(EPD_MODE_FULL_REFRESH);
-    __setting_page_draw(buffer, time);
+    __setting_page_draw(buffer, sys_info);
 
     epd_turnon();
     clear_all_button_event();
@@ -366,11 +540,10 @@ void setting_page_init(void *data)
 void setting_page_draw(void *data)
 {
     struct sys_info *sys_info = (struct sys_info *)data;
-    struct time *time = &sys_info->time;
     char buffer[32];
 
     epd_clear();
-    __setting_page_draw(buffer, time);
+    __setting_page_draw(buffer, sys_info);
     epd_turnon();
 }
 
@@ -384,11 +557,20 @@ int setting_page_ctl(void *data)
         bt_event = get_button_event(BUTTON2);
         if (bt_event == BT_EVENT_SHORT) {
             setting_page_indicator++;
+            if (setting_page_indicator > INDICATOR_NIGHT_END_LO)
+                setting_page_indicator = INDICATOR_YEAR_HI;
+            return PAGE_KEEP;
+        } else if (bt_event == BT_EVENT_LONG) {
+            setting_page_indicator--;
+            if (setting_page_indicator < 0)
+                setting_page_indicator = INDICATOR_NIGHT_END_LO;
             return PAGE_KEEP;
         }
 
+
         bt_event = get_button_event(BUTTON0);
         if (bt_event == BT_EVENT_SHORT) {
+            pcf8563_get_time(time);
             return PAGE_PREV;
         } else if (bt_event == BT_EVENT_LONG) {
             time->seconds = 0;
@@ -396,6 +578,7 @@ int setting_page_ctl(void *data)
                                           time->months,
                                           time->days);
             pcf8563_set_time(time);
+            pcf8563_get_time(time);
             epd_init(EPD_MODE_FULL_REFRESH);
             epd_clear();
             epd_turnon();
@@ -403,8 +586,8 @@ int setting_page_ctl(void *data)
         }
         
         bt_event = get_button_event(BUTTON1);
-        if (bt_event == BT_EVENT_SHORT) {
-            __setting_page_adjust(time);
+        if (bt_event == BT_EVENT_SHORT || bt_event == BT_EVENT_LONG) {
+            __setting_page_adjust(sys_info, bt_event);
             return PAGE_KEEP;
         }
     }
@@ -417,7 +600,8 @@ void ui_main_loop(void *data)
     struct sys_info *sys_info = (struct sys_info *)data;
     unsigned int action;
 
-    if (sys_info->wakeup_type == WAKEUP_BY_BUTTON)
+    if (sys_info->wakeup_type == WAKEUP_BY_BUTTON &&
+        !in_night_freeze())
         page = page->next;
 
     while(1) {

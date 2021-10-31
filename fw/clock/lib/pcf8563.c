@@ -33,8 +33,26 @@ void pcf8563_clr_and_en_alarm_int(void)
     i2c_master_write(PCF8563_ADDR, 0x01, (char *)&pcf8563_clr_and_en_alarm_int_value, 1);
 }
 
-void pcf8563_set_and_en_minute_alarm(uint8_t minute)
+void pcf8563_set_and_en_minute_alarm(int8_t minute)
 {
     minute = (minute%10) | ((minute/10)<<4);
     i2c_master_write(PCF8563_ADDR, 0x09, (char *)&minute, 1);
+}
+
+void pcf8563_dis_minute_alarm(void)
+{
+    int8_t minute = 0x80;
+    i2c_master_write(PCF8563_ADDR, 0x09, (char *)&minute, 1);
+}
+
+void pcf8563_set_and_en_hour_alarm(int8_t hour)
+{
+    hour = (hour%10) | ((hour/10)<<4);
+    i2c_master_write(PCF8563_ADDR, 0x0a, (char *)&hour, 1);
+}
+
+void pcf8563_dis_hour_alarm(void)
+{
+    int8_t hour = 0x80;
+    i2c_master_write(PCF8563_ADDR, 0x0a, (char *)&hour, 1);
 }

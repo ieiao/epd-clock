@@ -1,9 +1,9 @@
 #include "time.h"
 #include <stdbool.h>
 
-uint8_t calc_weekday(uint16_t year, uint8_t month, uint8_t day)
+int8_t calc_weekday(int16_t year, int8_t month, int8_t day)
 {
-    uint16_t c, y, weekday;
+    int16_t c, y, weekday;
 
     if (month == 1 || month == 2)
         year--, month += 12;
@@ -16,7 +16,7 @@ uint8_t calc_weekday(uint16_t year, uint8_t month, uint8_t day)
     return weekday;
 }
 
-bool is_leap_year(uint16_t year)
+bool is_leap_year(int16_t year)
 {
     if (year%400 == 0)
         return true;

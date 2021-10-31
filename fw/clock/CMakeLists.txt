@@ -16,6 +16,7 @@ add_executable(${EXECUTABLE}
     sys/font.c
     drivers/platform.c
     drivers/pm.c
+    drivers/adc.c
     drivers/gpio.c
     drivers/uart.c
     drivers/spi.c
