@@ -40,6 +40,7 @@ bool in_night_freeze(void)
 
 void __calc_and_set_minute_alarm(void)
 {
+    /* TODO 这里需要考虑一下在秒接近下一分钟时延后一分钟唤醒，防止出现唤醒失败的问题 */
     pcf8563_set_and_en_minute_alarm((sys_info.time.minutes == 59) ? 0 : (sys_info.time.minutes+1));
 }
 
