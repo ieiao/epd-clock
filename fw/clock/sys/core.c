@@ -62,7 +62,7 @@ void calc_and_set_rtc_alarm(void)
 
 void __get_bat_val(void)
 {
-    sys_info.bat_val = get_adc_value() * (2.5/1024.0) * 100;
+    sys_info.bat_val = (get_adc_value() * (250000/1024)) / 1000;
 }
 
 void main_loop(void)
