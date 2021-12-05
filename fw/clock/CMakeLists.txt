@@ -58,6 +58,6 @@ add_custom_target(flash
     COMMAND sudo mspdebug rf2500 "prog ${PROJECT_NAME}.elf"
     DEPENDS ${EXECUTABLE})
 
-add_custom_target(size
-    COMMAND ${CROSS_COMPILE}size ${EXECUTABLE}
-    DEPENDS ${EXECUTABLE})
+add_custom_command(TARGET ${EXECUTABLE}
+    POST_BUILD
+    COMMAND ${CROSS_COMPILE}size ${EXECUTABLE})

@@ -12,6 +12,7 @@ enum {
 enum {
     BT_BEGIN = 0,
     BT_PUSHED,
+    BT_KEEP_PUSHED,
     BT_RELEASE,
 };
 

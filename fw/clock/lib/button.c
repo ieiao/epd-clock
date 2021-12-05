@@ -49,10 +49,28 @@ void __button_scan(struct button *button)
     break;
     
     case BT_PUSHED:
-        if ((P2IN & (1 << button->offset)) == 0)
+        if ((P2IN & (1 << button->offset)) == 0) {
             button->count ++;
-        else
+            if (button->count >= 40) {
+                button->count = 0;
+                button->event = BT_EVENT_LONG;
+                button->state = BT_KEEP_PUSHED;
+            }
+        } else
             button->state = BT_RELEASE;
+    break;
+
+    case BT_KEEP_PUSHED:
+        if ((P2IN & (1 << button->offset)) == 0) {
+            button->count++;
+            if (button->count >= 20 && button->event == BT_EVENT_NONE) {
+                button->count = 0;
+                button->event = BT_EVENT_LONG;
+            }
+        } else {
+            button->count = 0;
+            button->state = BT_RELEASE;
+        }
     break;
 
     case BT_RELEASE:
